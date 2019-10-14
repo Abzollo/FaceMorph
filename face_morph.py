@@ -1,5 +1,4 @@
 
-import pickle
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -162,6 +161,7 @@ def face_morph_video(filename, img1, img2, landmarks1=None, landmarks2=None):
     if landmarks2 is None: landmarks2 = find_landmarks(img2)
 
     # Create a map that links the vertices of the two landmarks together
+    # NOTE: assumes that landmarks are ordered
     points_map = dict(zip(landmarks1, landmarks2))
 
     # Find Delauney triangles of both landmarks
