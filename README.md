@@ -1,5 +1,5 @@
 # FaceMorph
-Simple Python script that contains functions to morph a picture of one face into a picture of another face.
+Simple Python script that contains functions for morphing one face into another.
 
 ## How
 1. Find [face landmarks](http://blog.dlib.net/2014/08/real-time-face-pose-estimation.html).
