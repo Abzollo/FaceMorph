@@ -11,6 +11,8 @@ Simple Python script that contains functions to morph a picture of one face into
 ## Can you show me some examples?
 Just gimme a sec...
 
+![](gif/00000-after.jpeg --> 00000-before.jpeg.gif)
+
 ## Dependencies
 You should have `numpy` (for image manipulation) and `cv2` (for triangulation).
 Also, `face_recognition` is needed to find the face landmarks (you can use another library if you want).
