@@ -9,9 +9,12 @@ Simple Python script that contains functions to morph a picture of one face into
 5. You can interpolate how much the face is morphed (0 for no morph, 1 for full morph).
 
 ## Can you show me some examples?
-Just gimme a sec...
+Sure:
 
-![](gif/00000-after.jpeg --> 00000-before.jpeg.gif)
+|      Applying makeup      |       Removing makeup       |
+| ------------------------- | --------------------------- |
+| ![apply1](gif/apply1.gif) | ![remove1](gif/remove1.gif) |
+| ![apply2](gif/apply2.gif) | ![remove2](gif/remove2.gif) |
 
 ## Dependencies
 You should have `numpy` (for image manipulation) and `cv2` (for triangulation).
