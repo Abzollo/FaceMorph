@@ -8,15 +8,21 @@ from PIL import Image, ImageDraw
 from face_recognition import face_landmarks
 
 
-def find_landmarks(img):
+dict_to_list = lambda d: [x for l in d.values() for x in l]
 
-    dict_to_list = lambda d: [x for l in d.values() for x in l]
-
-    landmarks_found = face_landmarks(np.array(img))
-    if len(landmarks_found) > 0:
-        return dict_to_list(landmarks_found[0])
+def get_face_tone(img_array, landmarks=None):
+    if landmarks:
+        ...
     else:
-        raise Exception("Failed to find face landmarks for one of the images.")
+        return np.mean(img_array, axis=(0,1)).reshape(1,1,-1)
+
+def adjust_face_tone(img_array1, img_array2, landmarks1=None, landmarks2=None):
+    face_tone1 = get_face_tone(img_array1, landmarks1)
+    face_tone2 = get_face_tone(img_array2, landmarks2)
+    img_array1 = img_array1 * face_tone2 / face_tone1
+    img_array1 = img_array1.round().clip(0, 255).astype(np.uint8)
+
+    return img_array1
 
 
 def delauney(points, img, draw=False):
@@ -76,7 +82,7 @@ def warp_triangle(t1, t2, img1, img2, alpha=0.8):
     x1, y1, w1, h1 = cv2.boundingRect(t1)
     x2, y2, w2, h2 = cv2.boundingRect(t2)
     
-    # Sometimes, landmarks reside slightly outside the image... @XXX: hacky.
+    # Sometimes, landmarks reside slightly outside the image... XXX: hacky.
     x1, y1, x2, y2 = max(0, x1), max(0, y1), max(0, x2), max(0, y2)
     
     # Offset triangles' coordinates by the bounding rect's coordinates
@@ -103,7 +109,7 @@ def warp_triangle(t1, t2, img1, img2, alpha=0.8):
     patch1_warped = cv2.warpAffine(patch1, affine1to2, (w2,h2),
                                    borderMode=cv2.BORDER_REFLECT_101)
     
-    # Crop out points outside image on the max side. @XXX: hacky but ok.
+    # Crop out points outside image on the max side. XXX: hacky but ok.
     if patch1_warped.shape != patch2.shape:
         patch1_warped = patch1_warped[0:patch2.shape[0], 0:patch2.shape[1]]
         
@@ -121,7 +127,7 @@ def warp_triangle(t1, t2, img1, img2, alpha=0.8):
 
 
 
-def face_morph(img1, img2, landmarks1=None, landmarks2=None, alpha=0.95):
+def face_morph(img1, img2, landmarks1=None, landmarks2=None, alpha=0.9, adjust_tone=True):
     """
     Morph face in img1 to face in img2 by a factor of alpha, given their landmarks.
 
@@ -131,6 +137,7 @@ def face_morph(img1, img2, landmarks1=None, landmarks2=None, alpha=0.95):
         landmarks1: List of landmarks points from img1.
         landmarks2: List of landmarks points from img2.
         alpha: Factor of interpolation from face in img1 to face in img2.
+        adjust_tone: adjust the morphed face to the skin tone of the target face.
     """
 
     # Convert PIL images to np arrays
@@ -140,18 +147,23 @@ def face_morph(img1, img2, landmarks1=None, landmarks2=None, alpha=0.95):
     if landmarks1 is None: landmarks1 = find_landmarks(img1)
     if landmarks2 is None: landmarks2 = find_landmarks(img2)
 
+    # Adjust skin tone
+    if adjust_tone:
+        img_array1 = adjust_face_tone(img_array1, img_array2, landmarks1, landmarks2)
+
     # Create a map that links the vertices of the two landmarks together
     points_map = dict(zip(landmarks1, landmarks2))
 
     # Warp each triangle in img1 to its corresponding one in img2
     for t1 in delauney(landmarks1, img1):
-        t2 = tuple(map(lambda p: points_map[p], t1))
-        warp_triangle(t1, t2, img_array1, img_array2, alpha=alpha)
+        t2 = tuple(points_map[p] for p in t1 if p in points_map)
+        if len(t2) == 3:
+            warp_triangle(t1, t2, img_array1, img_array2, alpha=alpha)
 
     return img_array2
 
 
-def face_morph_video(filename, img1, img2, landmarks1=None, landmarks2=None):
+def face_morph_video(filename, img1, img2, landmarks1=None, landmarks2=None, adjust_tone=True):
 
     # Convert PIL images to np arrays
     img_array1, img_array2 = np.array(img1), np.array(img2)
@@ -160,8 +172,11 @@ def face_morph_video(filename, img1, img2, landmarks1=None, landmarks2=None):
     if landmarks1 is None: landmarks1 = find_landmarks(img1)
     if landmarks2 is None: landmarks2 = find_landmarks(img2)
 
+    # Adjust skin tone
+    if adjust_tone:
+        img_array1 = adjust_face_tone(img_array1, img_array2, landmarks1, landmarks2)
+
     # Create a map that links the vertices of the two landmarks together
-    # NOTE: assumes that landmarks are ordered
     points_map = dict(zip(landmarks1, landmarks2))
 
     # Find Delauney triangles of both landmarks
@@ -182,8 +197,11 @@ def face_morph_video(filename, img1, img2, landmarks1=None, landmarks2=None):
         
         # Warp each triangle in img1 to its corresponding one in img2
         for t1 in triangles1:
-            t2 = tuple(map(lambda p: points_map[p], t1))
-            warp_triangle(t1, t2, img_array1, morphed_img, alpha=alpha)
+            t2 = tuple(points_map[p] for p in t1 if p in points_map)
+            if len(t2) == 3:
+                warp_triangle(t1, t2, img_array1, morphed_img, alpha=alpha)
+
+
         
         # save frame of morphed image to animate later
         morphed_imgs.append([plt.imshow(morphed_img, animated=True)])
@@ -194,46 +212,48 @@ def face_morph_video(filename, img1, img2, landmarks1=None, landmarks2=None):
     ani.save(filename)
 
 
+def find_landmarks(img):
+    landmarks_found = face_landmarks(np.array(img))
+    if len(landmarks_found) > 0:
+        return dict_to_list(landmarks_found[0])
+    else:
+        raise Exception("Failed to find face landmarks for one of the images.")
+
+
 #############################################
 
-def test(imgname1, imgname2):
+def test(test_num, reverse=False):
 
-    # File name of video
-    filename = f"vid/{imgname1} --> {imgname2}.mp4"
+    # Just a test
+    img1_name = f"img/{test_num}-before.jpeg"
+    img2_name = f"img/{test_num}-after.jpeg"
 
-    imgname1 = f"img/{imgname1}"
-    imgname2 = f"img/{imgname2}"
+    # Reverse morph direction (morph 2 -> 1 instead of 1 -> 2)
+    if reverse:
+        img1_name, img2_name = img2_name, img1_name
 
     # Load images
-    img1 = Image.open(imgname1)
-    img2 = Image.open(imgname2)
+    img1 = Image.open(img1_name)
+    img2 = Image.open(img2_name)
 
     # Extract landmarks
     landmarks1 = find_landmarks(img1)
     landmarks2 = find_landmarks(img2)
 
     # Morph face
+    makeup_process = "apply" if reverse else "remove"
+    filename = f"morphing_face_{test_num}_{makeup_process}.mp4"
     face_morph_video(filename, img1, img2, landmarks1, landmarks2)
 
 
 def main():
-    test("00000-before.jpeg", "00000-after.jpeg")
-    test("00000-after.jpeg", "00000-before.jpeg")
+    test("00000")
+    test("00000", reverse=True)
+    test("00003")
+    test("00003", reverse=True)
 
-    test("00003-before.jpeg", "00003-after.jpeg")
-    test("00003-after.jpeg", "00003-before.jpeg")
-
-    test("00000-before.jpeg", "00003-before.jpeg")
-    test("00003-before.jpeg", "00000-before.jpeg")
-
-    test("00000-after.jpeg", "00003-after.jpeg")
-    test("00003-after.jpeg", "00000-after.jpeg")
-
-    test("00000-before.jpeg", "00003-after.jpeg")
-    test("00003-after.jpeg", "00000-before.jpeg")
-
-    test("00003-before.jpeg", "00000-after.jpeg")
-    test("00000-after.jpeg", "00003-before.jpeg")
+    test("mixed1")
+    test("mixed2")
 
 
 if __name__ == '__main__':
