@@ -3,7 +3,6 @@ Simple Python script that contains functions for morphing one face into another.
 
 ## How
 1. Find [face landmarks](http://blog.dlib.net/2014/08/real-time-face-pose-estimation.html).
-1.5. Adjust the tone of the source face to fit the tone of the target face.
 2. Map the landmarks points to each other.
 3. Find the Delauney triangulation of the landmarks from the source image.
 4. For each triangle in the source image, (affine) transform it to its corresponding one in the destination image.
@@ -17,15 +16,8 @@ Sure:
 | ![apply1](gif/apply1.gif) | ![remove1](gif/remove1.gif) |
 | ![apply2](gif/apply2.gif) | ![remove2](gif/remove2.gif) |
 
-Also, below are some nightmarish examples where the morphing is mixed, i.e. happening from one person to another.
-
-|      Applying makeup      |       Removing makeup       |
-| ------------------------- | --------------------------- |
-| ![apply1](gif/apply3.gif) | ![remove1](gif/remove3.gif) |
-| ![apply2](gif/apply4.gif) | ![remove2](gif/remove4.gif) |
-
 ## Dependencies
 You should have `numpy` (for image manipulation) and `cv2` (for triangulation).
 Also, `face_recognition` is needed to find the face landmarks (you can use another library if you want).
-Please note that `face_recognition` requires `dlib`, which can be annoying to install.
-Finally, `matplotlib` is needed to make the videos in this README (I actually had to convert them from mp4 to gif using an online service like ezgif).
+Please note that `face_recognition` requires `dlib`, which can be annoying to set up.
+Finally, `matplotlib` is needed to make the videos in this README.
