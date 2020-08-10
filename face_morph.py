@@ -263,12 +263,13 @@ def test(test_num, reverse=False):
 
 def main():
     test("00000")
-    test("00000", reverse=True)
     test("00003")
-    test("00003", reverse=True)
-
     test("mixed1")
     test("mixed2")
+    test("00000", reverse=True)
+    test("00003", reverse=True)
+    test("mixed1", reverse=True)
+    test("mixed2", reverse=True)
 
 
 if __name__ == '__main__':
