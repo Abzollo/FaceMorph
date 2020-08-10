@@ -4,17 +4,31 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+from math import pi, atan2
 from PIL import Image, ImageDraw
 from face_recognition import face_landmarks
 
-
 dict_to_list = lambda d: [x for l in d.values() for x in l]
+
+
+def get_face_mask(img_array, landmarks):
+    # Get the convex hull containing face landmarks
+    hull = cv2.convexHull(np.array(landmarks)).squeeze()
+
+    # Draw the contours on the mask (thickness -1 fills the inside of the contours)
+    mask = np.zeros((img_array.shape[0], img_array.shape[1]), dtype=np.uint8)
+    cv2.drawContours(mask, [hull], 0, color=(255, 255, 255), thickness=-1)
+
+    # Apply the mask to the face to get the face only
+    mask = mask.reshape(mask.shape + (1,))
+    face_mask = (mask > 0) * img_array
+
+    return face_mask
 
 def get_face_tone(img_array, landmarks=None):
     if landmarks:
-        ...
-    else:
-        return np.mean(img_array, axis=(0,1)).reshape(1,1,-1)
+        img_array = get_face_mask(img_array, landmarks)
+    return np.mean(img_array, axis=(0,1)).reshape(1,1,-1)
 
 def adjust_face_tone(img_array1, img_array2, landmarks1=None, landmarks2=None):
     face_tone1 = get_face_tone(img_array1, landmarks1)
@@ -23,7 +37,6 @@ def adjust_face_tone(img_array1, img_array2, landmarks1=None, landmarks2=None):
     img_array1 = img_array1.round().clip(0, 255).astype(np.uint8)
 
     return img_array1
-
 
 def delauney(points, img, draw=False):
     """
@@ -34,7 +47,6 @@ def delauney(points, img, draw=False):
         points: A list of 2D points as tuples.
         img: The image of containing the points as a PIL or numpy.
         draw: Draw the triangulation on the img if True.
-        
     """
     
     # Init subdiv and insert points
@@ -57,6 +69,9 @@ def delauney(points, img, draw=False):
         p2 = (t[2], t[3])
         p3 = (t[4], t[5])
         t = tuple(sorted([p1, p2, p3]))
+        # Sort the rest of the points in clockwise order XXX: overkill?
+        # angle = lambda p: (-0.5*pi-atan2(p[1] - t[0][1], p[0] - t[0][0])) % (2*pi)
+        # t = tuple([t[0]] + sorted(t[1:], key=angle))
         triangles.append(t)
 
     return sorted(triangles)
@@ -149,7 +164,7 @@ def face_morph(img1, img2, landmarks1=None, landmarks2=None, alpha=0.9, adjust_t
 
     # Adjust skin tone
     if adjust_tone:
-        img_array1 = adjust_face_tone(img_array1, img_array2, landmarks1, landmarks2)
+        img_array1 = adjust_face_tone(img_array1, img_array2)
 
     # Create a map that links the vertices of the two landmarks together
     points_map = dict(zip(landmarks1, landmarks2))
@@ -174,7 +189,7 @@ def face_morph_video(filename, img1, img2, landmarks1=None, landmarks2=None, adj
 
     # Adjust skin tone
     if adjust_tone:
-        img_array1 = adjust_face_tone(img_array1, img_array2, landmarks1, landmarks2)
+        img_array1 = adjust_face_tone(img_array1, img_array2)
 
     # Create a map that links the vertices of the two landmarks together
     points_map = dict(zip(landmarks1, landmarks2))
